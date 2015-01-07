@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<openerp>
+    <data>
+
+        <record id="view_invoice_form_einvoice_send" model="ir.ui.view">
+            <field name="name">account.invoice.einvoice.send</field>
+            <field name="model">account.invoice</field>
+            <field name="inherit_id" ref="account.invoice_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_invoice_sent']" position="after">
+                    <button name="action_invoice_send_einvoice" type="object" string="Send by eInvoice"
+                            attrs="{'invisible':[('state', '!=', 'open')]}" class="oe_highlight"
+                            groups="base.group_user"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</openerp>
+
