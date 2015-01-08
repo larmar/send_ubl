@@ -9,6 +9,7 @@
             <field name="arch" type="xml">
                 <field name="website" position="after">
                     <field name="einvoice_address"/>
+                    <field name="einvoice_address_scheme"/>
                 </field>
             </field>
         </record>

@@ -18,7 +18,7 @@ class account_invoice(models.Model):
 
             if not invoice.company_id.einvoice_ftp_endpoint or not invoice.company_id.einvoice_ftp_user or not invoice.company_id.einvoice_ftp_password:
                 continue
-
+            assert invoice
             xml = create_ehf.create_ehf(invoice)
             xmlfile = StringIO.StringIO(xml)
             _logger.info('Invoice %s generated this EHF-XML: %s' % (invoice.number, xml))

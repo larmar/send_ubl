@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-.- coding: utf-8 -.-
+# -.- coding: utf-8 -.-
 import oerplib
 
 """
@@ -13,21 +13,23 @@ import logging
 import urllib2
 
 nsmap = {None: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
-	'cac' : "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-                         'cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'}
+         'cac': "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+         'cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'}
 customization_id = 'urn:www.cenbii.eu:transaction:biitrns010:ver2.0:extended:urn:www.peppol.eu:bis:peppol5a:ver2.0:extended:urn:www.difi.no:ehf:faktura:ver2.0'
 profile_id = 'urn:www.cenbii.eu:profile:bii05:ver2.0'
 
-E = ElementMaker(namespace = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2", nsmap=nsmap)
-E_cbc = ElementMaker(namespace = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2", nsmap=nsmap)
-E_cac = ElementMaker(namespace = 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', nsmap=nsmap)
+E = ElementMaker(namespace="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2", nsmap=nsmap)
+E_cbc = ElementMaker(namespace="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2", nsmap=nsmap)
+E_cac = ElementMaker(namespace='urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', nsmap=nsmap)
+
 
 def create_supplier_party(company):
     assert company.company_registry, 'Company %s must have org number' % company.name
+    party_scheme = company.country_id.code == 'NO' and 'NO:ORGNR' or 'EU:VAT'
     r = E_cac.AccountingSupplierParty(
         E_cac.Party(
-            E_cbc.EndpointID(company.company_registry, schemeID="NO:ORGNR"),
-            E_cac.PartyName(E_cbc.Name(company.name) ),
+            E_cbc.EndpointID(company.company_registry, schemeID=party_scheme),
+            E_cac.PartyName(E_cbc.Name(company.name)),
             E_cac.PostalAddress(
                 E_cbc.StreetName(company.street),
                 E_cbc.CityName(company.city),
@@ -35,36 +37,35 @@ def create_supplier_party(company):
                 E_cac.Country(E_cbc.IdentificationCode(company.country_id.code, listID="ISO3166-1:Alpha2")),
             ),
             E_cac.PartyTaxScheme(
-                E_cbc.CompanyID(company.company_registry, schemeID="NO:VAT"),
+                E_cbc.CompanyID(company.company_registry, schemeID=party_scheme),
                 E_cac.TaxScheme(E_cbc.ID('VAT'))
             ),
-			E_cac.PartyLegalEntity(
-				E_cbc.RegistrationName(company.name),
-				E_cbc.CompanyID(company.company_registry, schemeID="NO:ORGNR"),
-				E_cac.RegistrationAddress(
-					E_cbc.CityName(company.city),
-					E_cac.Country(E_cbc.IdentificationCode(company.country_id.code, listID="ISO3166-1:Alpha2")),
-                    ),
+            E_cac.PartyLegalEntity(
+                E_cbc.RegistrationName(company.name),
+                E_cbc.CompanyID(company.company_registry, schemeID=party_scheme),
+                E_cac.RegistrationAddress(
+                    E_cbc.CityName(company.city),
+                    E_cac.Country(E_cbc.IdentificationCode(company.country_id.code, listID="ISO3166-1:Alpha2")),
+                ),
             ),
-            E_cac.Contact(
-				#E_cbc.ID('Our ref'),
-				#E_cbc.Name(our_contact),
-				#E_cbc.Telephone(elmatica_phone),
-                E_cbc.ElectronicMail(company.email),
+            E_cac.Contact(  #E_cbc.ID('Our ref'),  #E_cbc.Name(our_contact),  #E_cbc.Telephone(elmatica_phone),
+                            E_cbc.ElectronicMail(company.email),
             ),
         )
     )
 
     return r
 
+
 def create_customer_party(partner, customer_contact):
     contact_id = customer_contact.split()[0]
     contact_name = ' '.join(customer_contact.split()[2:])
     assert partner.vat, 'Partner %s must have VAT number' % partner.name
+    party_scheme = partner.einvoice_address_scheme or 'OVT'
 
     r = E_cac.AccountingCustomerParty(
         E_cac.Party(
-            E_cac.PartyIdentification(E_cbc.ID(partner.ec_number, schemeID="ZZZ")),
+            E_cac.PartyIdentification(E_cbc.ID(partner.vat, schemeID=party_scheme)),
             E_cac.PartyName(E_cbc.Name(partner.name)),
             E_cac.PostalAddress(
                 E_cbc.StreetName(partner.street),
@@ -73,30 +74,29 @@ def create_customer_party(partner, customer_contact):
                 E_cac.Country(E_cbc.IdentificationCode(partner.country_id.code, listID="ISO3166-1:Alpha2")),
             ),
             E_cac.PartyTaxScheme(
-                E_cbc.CompanyID(partner.vat, schemeID="NO:VAT"),
+                E_cbc.CompanyID(partner.vat, schemeID=party_scheme),
                 E_cac.TaxScheme(E_cbc.ID('VAT'))
             ),
-			E_cac.PartyLegalEntity(
-				E_cbc.RegistrationName(partner.name),
-				E_cbc.CompanyID(partner.vat, schemeID="NO:ORGNR"),
-				E_cac.RegistrationAddress(
-					E_cbc.CityName(partner.city),
-					E_cac.Country(E_cbc.IdentificationCode(partner.country_id.code, listID="ISO3166-1:Alpha2")),
-                    ),
+            E_cac.PartyLegalEntity(
+                E_cbc.RegistrationName(partner.name),
+                E_cbc.CompanyID(partner.vat, schemeID=party_scheme),
+                E_cac.RegistrationAddress(
+                    E_cbc.CityName(partner.city),
+                    E_cac.Country(E_cbc.IdentificationCode(partner.country_id.code, listID="ISO3166-1:Alpha2")),
+                ),
             ),
             E_cac.Contact(
-				E_cbc.ID(customer_contact),
-				E_cbc.Name(contact_name),
-				# E_cbc.Telephone(customer_contact_phone),
-				# E_cbc.ElectronicMail(customer_contact_email),
-                ),
-            )
+                E_cbc.ID(contact_id),
+                E_cbc.Name(contact_name),  # E_cbc.Telephone(customer_contact_phone),
+                # E_cbc.ElectronicMail(customer_contact_email),
+            ),
+        )
     )
 
     return r
 
 
-payment_means_code = '31' # whatever that means
+payment_means_code = '31'  # whatever that means
 """
 bank_identifier = 'DNBANOKK'
 due_date = '2013-07-20'
@@ -105,11 +105,12 @@ iban_number = 'NO9386011117947'
 branch_id = '9710'
 """
 
+
 def create_payment_means(invoice):
     iban_account = None
     branch_id = None
     for bank_account in invoice.company_id.bank_ids:
-        if bank_account.state=='iban':
+        if bank_account.state == 'iban':
             iban_account = bank_account.acc_number
             branch_id = bank_account.bank_bic
 
@@ -134,6 +135,7 @@ def create_payment_means(invoice):
 
     return r
 
+
 """
 tax_category = 'S'
 tax_percent = '25'
@@ -143,16 +145,18 @@ tax_amount_reporting_currency = '2160.00'
 tax_inclusive_total = "1250.00"
 """
 
+
 def create_monetary_totals(invoice):
     currency_code = invoice.currency_id.name
 
     r = E_cac.LegalMonetaryTotal(
-		E_cbc.LineExtensionAmount('%.2f' % invoice.amount_untaxed, currencyID=currency_code),
-		E_cbc.TaxExclusiveAmount('%.2f' % invoice.amount_untaxed, currencyID=currency_code),
-		E_cbc.TaxInclusiveAmount('%.2f' % invoice.amount_total, currencyID=currency_code),
-		E_cbc.PayableAmount('%.2f' % invoice.amount_total, currencyID=currency_code),
+        E_cbc.LineExtensionAmount('%.2f' % invoice.amount_untaxed, currencyID=currency_code),
+        E_cbc.TaxExclusiveAmount('%.2f' % invoice.amount_untaxed, currencyID=currency_code),
+        E_cbc.TaxInclusiveAmount('%.2f' % invoice.amount_total, currencyID=currency_code),
+        E_cbc.PayableAmount('%.2f' % invoice.amount_total, currencyID=currency_code),
     )
     return r
+
 
 """
 delivery_date = '2013-05-01'
@@ -161,6 +165,7 @@ delivery_city = 'Bergen'
 delivery_zip = '5000'
 delivery_country = 'NO'
 """
+
 
 def create_delivery(delivery_date, partner):
     r = E_cac.Delivery(
@@ -207,13 +212,14 @@ def get_tax_totals(invoice):
 
                 percentage = int(tci[2] * 100)
 
-
-        tax_info = (taxline.base_amount, taxline.base_amount_in_reporting_currency, taxline.amount, taxline.amount_in_reporting_currency, percentage)
+        tax_info = (taxline.base_amount, taxline.base_amount_in_reporting_currency, taxline.amount,
+                    taxline.amount_in_reporting_currency, percentage)
         all_taxes.append(tax_info)
     return all_taxes
 
 
 tax_category = 'S'
+
 
 def create_tax_total(invoice):
     assert invoice.type == 'out_invoice', 'We only support outgoing invoices at this time.'
@@ -222,12 +228,14 @@ def create_tax_total(invoice):
     reporting_currency_code = invoice.company_id.reporting_currency_id.name
 
     tax_info = get_tax_totals(invoice)
-    tax_amount = '%.2f' % sum([x[2] for x in tax_info])
+    if len(tax_info) == 0:
+        return
 
+    tax_amount = '%.2f' % sum([x[2] for x in tax_info])
 
     tax_total = E_cac.TaxTotal(
         E_cbc.TaxAmount(tax_amount, currencyID=currency_code),
-        )
+    )
 
     for taxline in tax_info:
         subtotal = E_cac.TaxSubtotal(
@@ -244,6 +252,7 @@ def create_tax_total(invoice):
 
     return tax_total
 
+
 """
 lines = [
     {'id': '1',
@@ -258,6 +267,7 @@ lines = [
 ]
 """
 
+
 def create_invoice_line(line):
     currency_code = line.invoice_id.currency_id.name
     invoiceline = E_cac.InvoiceLine(
@@ -268,38 +278,38 @@ def create_invoice_line(line):
         #E_cac.OrderLineReference(E_cbc.LineID(line['order_line'])),
     )
 
-
     item = E_cac.Item(
-            E_cbc.Name(line.name),
-            E_cac.SellersItemIdentification(E_cbc.ID(line.product_id.name)),
-            )
+        E_cbc.Name(line.name),
+        E_cac.SellersItemIdentification(E_cbc.ID(line.product_id.name)),
+    )
 
     for tax_id in line.invoice_line_tax_id:
-        percent = '%d' % int(round(tax_id.amount,2) * 100)
+        percent = '%d' % int(round(tax_id.amount, 2) * 100)
 
         tax = E_cac.ClassifiedTaxCategory(
-                E_cbc.ID(tax_category, schemeID="UNCL5305"),
-                E_cbc.Percent(percent),
-                E_cac.TaxScheme(E_cbc.ID('VAT')),
-            )
+            E_cbc.ID(tax_category, schemeID="UNCL5305"),
+            E_cbc.Percent(percent),
+            E_cac.TaxScheme(E_cbc.ID('VAT')),
+        )
         item.append(tax)
 
     invoiceline.append(item)
     invoiceline.append(E_cac.Price(
         E_cbc.PriceAmount('%.3f' % line.price_unit, currencyID=currency_code),
         #E_cbc.BaseQuantity('%d'  % line.quantity)
-        )
+    )
     )
 
     return invoiceline
 
 
 def create_tax_exchange_rate(invoice):
-    date_invoice = type(invoice.date_invoice) == str and invoice.date_invoice or invoice.date_invoice.strftime('%Y-%m-%d')
+    date_invoice = type(invoice.date_invoice) == str and invoice.date_invoice or invoice.date_invoice.strftime(
+        '%Y-%m-%d')
     currency_code = invoice.currency_id.name
     reporting_currency_code = invoice.company_id.reporting_currency_id.name
 
-#    has_tax, tax_sum_invoice_curr, tax_sum_reporting_curr, base_sum_invoice_curr, base_sum_reporting_curr
+    #    has_tax, tax_sum_invoice_curr, tax_sum_reporting_curr, base_sum_invoice_curr, base_sum_reporting_curr
     tax_info = get_tax_totals(invoice)
     if len(tax_info) == 0:
         return
@@ -324,7 +334,8 @@ def create_tax_exchange_rate(invoice):
 
 
 def create_ehf(invoice):
-    date_invoice = type(invoice.date_invoice) == str and invoice.date_invoice or invoice.date_invoice.strftime('%Y-%m-%d')
+    date_invoice = type(invoice.date_invoice) == str and invoice.date_invoice or invoice.date_invoice.strftime(
+        '%Y-%m-%d')
     my_doc = E.Invoice(
         E_cbc.UBLVersionID('2.1'),
         E_cbc.CustomizationID(customization_id),
@@ -336,11 +347,19 @@ def create_ehf(invoice):
         create_supplier_party(invoice.company_id),
         create_customer_party(invoice.partner_id, invoice.customer_contact),
         create_delivery(date_invoice, invoice.partner_shipping_id),
-        create_payment_means(invoice),
-        create_tax_exchange_rate(invoice),
-        create_tax_total(invoice),
-        create_monetary_totals(invoice),
+        create_payment_means(invoice)
     )
+
+    tax_echange = create_tax_exchange_rate(invoice)
+    if tax_echange:
+        my_doc.append(tax_echange)
+
+    tax_total = create_tax_total(invoice)
+    if tax_total:
+        my_doc.append(tax_total)
+
+    monetary_total = create_monetary_totals(invoice)
+    my_doc.append(monetary_total)
 
     for line in invoice.invoice_line:
         my_doc.append(create_invoice_line(line))
@@ -349,7 +368,7 @@ def create_ehf(invoice):
     return x
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     #invoice_no = 'OG0011'
     #invoice_no = 'OG0015'
     invoice_no = 'OG0016'
@@ -370,7 +389,7 @@ if __name__=='__main__':
     req = urllib2.Request(url)
     req.add_header('Content-Type', 'application/xml; charset=utf-8')
     req.add_header('Content-Length', len(data))
-    response = urllib2.urlopen(req,  data)
+    response = urllib2.urlopen(req, data)
     f = open('validation-result.xml', 'w')
     f.write(response.read())
     f.close()
@@ -380,7 +399,7 @@ if __name__=='__main__':
     req = urllib2.Request(url)
     req.add_header('Content-Type', 'application/xml; charset=utf-8')
     req.add_header('Content-Length', len(data))
-    response = urllib2.urlopen(req,  data)
+    response = urllib2.urlopen(req, data)
     f = open('render-result.html', 'w')
     f.write(response.read())
     f.close()
