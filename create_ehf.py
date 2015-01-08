@@ -342,13 +342,18 @@ def create_ehf(invoice):
         E_cbc.ProfileID(profile_id),
         E_cbc.ID(invoice.number),
         E_cbc.IssueDate(date_invoice),
-        E_cbc.DocumentCurrencyCode(invoice.currency_id.name, listID="ISO4217"),
-        E_cbc.TaxCurrencyCode(invoice.company_id.reporting_currency_id.name, listID="ISO4217"),
-        create_supplier_party(invoice.company_id),
-        create_customer_party(invoice.partner_id, invoice.customer_contact),
-        create_delivery(date_invoice, invoice.partner_shipping_id),
-        create_payment_means(invoice)
+        E_cbc.DocumentCurrencyCode(invoice.currency_id.name, listID="ISO4217")
     )
+
+    tax_info = get_tax_totals(invoice)
+    if len(tax_info) > 0:
+        E_cbc.TaxCurrencyCode(invoice.company_id.reporting_currency_id.name, listID="ISO4217")
+
+    my_doc.append(create_supplier_party(invoice.company_id))
+    my_doc.append(create_customer_party(invoice.partner_id, invoice.customer_contact))
+    my_doc.append(create_delivery(date_invoice, invoice.partner_shipping_id))
+    my_doc.append(create_payment_means(invoice))
+
 
     tax_echange = create_tax_exchange_rate(invoice)
     if tax_echange:
@@ -371,10 +376,12 @@ def create_ehf(invoice):
 if __name__ == '__main__':
     #invoice_no = 'OG0011'
     #invoice_no = 'OG0015'
-    invoice_no = 'OG0016'
+    #invoice_no = 'OG0016'
+    invoice_no = 'ON0002'
 
-    oerp = oerplib.OERP('localhost', protocol='xmlrpc', port=8069)
-    user = oerp.login('admin', 'X', 'X')
+    #oerp = oerplib.OERP('localhost', protocol='xmlrpc', port=8069)
+    #user = oerp.login('admin', 'X', 'X')
+    oerp = oerplib.OERP.load('debug')
     invoice_obj = oerp.get('account.invoice')
     invoice_ids = invoice_obj.search([('number', '=', invoice_no)])
     assert len(invoice_ids) == 1
@@ -383,7 +390,8 @@ if __name__ == '__main__':
     for x in invoices:
         invoice = x
 
-    url = 'http://localhost:8080/validate-ws/'
+    #url = 'http://localhost:8080/validate-ws/'
+    url = 'http://vefa.difi.no/validate-ws/'
     data = create_ehf(invoice)
     print "DATA", data
     req = urllib2.Request(url)
