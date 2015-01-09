@@ -10,5 +10,5 @@ ADDRESS_SCHEMES = [('NO:ORGNR', 'Norwegian ORG number'),
 class res_partner(models.Model):
     _inherit = 'res.partner'
 
-    einvoice_address = fields.Char(string = _('Einvoice address'), help='Destination party identifier when sending EHF invoices.')
-    einvoice_address_scheme = fields.Selection(ADDRESS_SCHEMES, string='Einvoice address scheme')
+    einvoice_address = fields.Char(string = _('eInvoice address'), help='Destination party identifier when sending EHF invoices.')
+    einvoice_address_scheme = fields.Selection(ADDRESS_SCHEMES, string='eInvoice address scheme')
