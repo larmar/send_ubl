@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -.- coding: utf-8 -.-
-import oerplib
+
 
 """
 Generate invoices in EHF format.
@@ -404,6 +404,7 @@ def create_ehf(invoice):
 
 
 if __name__ == '__main__':
+    import oerplib
     #invoice_no = 'OG0011'
     #invoice_no = 'OG0015'
     invoice_no = 'OG0016'
