@@ -2,8 +2,10 @@ __author__ = 'tbri'
 from openerp import models, fields, api, _
 
 ADDRESS_SCHEMES = [('NO:ORGNR', 'Norwegian ORG number'),
+                   ('CVR', 'CVR format'),
     ('EU:VAT','EU Vat number'),
-    ('OVT','Finnish eInvoice address')]
+    ('FI:OVT','Finnish eInvoice address')]
+
 
 class res_partner(models.Model):
     _inherit = 'res.partner'

@@ -25,10 +25,12 @@ E_cac = ElementMaker(namespace='urn:oasis:names:specification:ubl:schema:xsd:Com
 
 def create_supplier_party(company):
     assert company.company_registry, 'Company %s must have org number' % company.name
-    party_scheme = company.country_id.code == 'NO' and 'NO:ORGNR' or 'EU:VAT'
+    party_scheme = '%s:VAT' % company.country_id.code
+    company_number = company.company_registry[2:].replace(' ', '')
     r = E_cac.AccountingSupplierParty(
         E_cac.Party(
-            E_cbc.EndpointID(company.company_registry, schemeID=party_scheme),
+            E_cbc.EndpointID(company.partner_id.einvoice_address, schemeID=company.partner_id.einvoice_address_scheme),
+            #E_cbc.EndpointID('60 764 05083', schemeID='CVR'),
             E_cac.PartyName(E_cbc.Name(company.name)),
             E_cac.PostalAddress(
                 E_cbc.StreetName(company.street),
@@ -37,12 +39,13 @@ def create_supplier_party(company):
                 E_cac.Country(E_cbc.IdentificationCode(company.country_id.code, listID="ISO3166-1:Alpha2")),
             ),
             E_cac.PartyTaxScheme(
-                E_cbc.CompanyID(company.company_registry, schemeID=party_scheme),
+                E_cbc.CompanyID('60 764 05083', schemeID='CVR'),
+                #E_cbc.CompanyID(company_number, schemeID=party_scheme),
                 E_cac.TaxScheme(E_cbc.ID('VAT'))
             ),
             E_cac.PartyLegalEntity(
                 E_cbc.RegistrationName(company.name),
-                E_cbc.CompanyID(company.company_registry, schemeID=party_scheme),
+                E_cbc.CompanyID(company.vat[2:], schemeID='NO:ORGNR'),
                 E_cac.RegistrationAddress(
                     E_cbc.CityName(company.city),
                     E_cac.Country(E_cbc.IdentificationCode(company.country_id.code, listID="ISO3166-1:Alpha2")),
@@ -61,11 +64,18 @@ def create_customer_party(partner, customer_contact):
     contact_id = customer_contact.split()[0]
     contact_name = ' '.join(customer_contact.split()[2:])
     assert partner.vat, 'Partner %s must have VAT number' % partner.name
-    party_scheme = partner.einvoice_address_scheme or 'OVT'
+    party_scheme = partner.einvoice_address_scheme or 'FI:OVT'
+    company_scheme = '%s:VAT' % partner.country_id.code
+    partner_org_number = partner.vat[2:]
 
     r = E_cac.AccountingCustomerParty(
         E_cac.Party(
-            E_cac.PartyIdentification(E_cbc.ID(partner.vat, schemeID=party_scheme)),
+            E_cbc.EndpointID(partner.einvoice_address, schemeID=party_scheme), # SKal vere CVR
+            #E_cbc.EndpointID('EE101358596', schemeID='FI:VAT'),
+            # E_cbc.EndpointID('003710298402', schemeId='CVR'),
+
+
+            E_cac.PartyIdentification(E_cbc.ID(partner.einvoice_address, schemeID=party_scheme)),
             E_cac.PartyName(E_cbc.Name(partner.name)),
             E_cac.PostalAddress(
                 E_cbc.StreetName(partner.street),
@@ -73,13 +83,13 @@ def create_customer_party(partner, customer_contact):
                 E_cbc.PostalZone(partner.zip),
                 E_cac.Country(E_cbc.IdentificationCode(partner.country_id.code, listID="ISO3166-1:Alpha2")),
             ),
-            E_cac.PartyTaxScheme(
-                E_cbc.CompanyID(partner.vat, schemeID=party_scheme),
-                E_cac.TaxScheme(E_cbc.ID('VAT'))
-            ),
+    #        E_cac.PartyTaxScheme(
+    #            E_cbc.CompanyID(partner_org_number, schemeID=party_scheme),
+    #            E_cac.TaxScheme(E_cbc.ID('VAT'))
+    #        ),
             E_cac.PartyLegalEntity(
                 E_cbc.RegistrationName(partner.name),
-                E_cbc.CompanyID(partner.vat, schemeID=party_scheme),
+                E_cbc.CompanyID(partner_org_number, schemeID=company_scheme),
                 E_cac.RegistrationAddress(
                     E_cbc.CityName(partner.city),
                     E_cac.Country(E_cbc.IdentificationCode(partner.country_id.code, listID="ISO3166-1:Alpha2")),
@@ -111,7 +121,7 @@ def create_payment_means(invoice):
     branch_id = None
     for bank_account in invoice.company_id.bank_ids:
         if bank_account.state == 'iban':
-            iban_account = bank_account.acc_number
+            iban_account = bank_account.acc_number.replace(' ', '')
             branch_id = bank_account.bank_bic
 
     assert iban_account, 'No IBAN account defined for %s' % invoice.company_id.name
@@ -332,18 +342,38 @@ def create_tax_exchange_rate(invoice):
 
     return r
 
+INVOICE_TYPE_CODE = '380'
 
 def create_ehf(invoice):
     date_invoice = type(invoice.date_invoice) == str and invoice.date_invoice or invoice.date_invoice.strftime(
         '%Y-%m-%d')
+    note = ''
+    if invoice.name:
+        note += 'Your PO: %s\n' % invoice.name
+    note += 'Customs declaration code: 8534.0000 \n'
+    if invoice.supplier_country:
+        note += 'Country of origin: %s \n' % invoice.supplier_country
+    if invoice.supplier_vat:
+        note += 'Supplier VAT no.: %s \n' % invoice.supplier_vat
+    if invoice.situation_text:
+        note += '%s\n' % invoice.situation_text
+
     my_doc = E.Invoice(
         E_cbc.UBLVersionID('2.1'),
         E_cbc.CustomizationID(customization_id),
         E_cbc.ProfileID(profile_id),
         E_cbc.ID(invoice.number),
         E_cbc.IssueDate(date_invoice),
+        E_cbc.InvoiceTypeCode(INVOICE_TYPE_CODE, listID="UNCL1001"),
+        E_cbc.Note(note),
         E_cbc.DocumentCurrencyCode(invoice.currency_id.name, listID="ISO4217")
     )
+
+    if invoice.origin:
+        order_ref = E_cac.OrderReference(
+            E_cbc.ID(invoice.origin),
+        )
+        my_doc.append(order_ref)
 
     tax_info = get_tax_totals(invoice)
     if len(tax_info) > 0:
@@ -376,8 +406,9 @@ def create_ehf(invoice):
 if __name__ == '__main__':
     #invoice_no = 'OG0011'
     #invoice_no = 'OG0015'
-    #invoice_no = 'OG0016'
-    invoice_no = 'ON0002'
+    invoice_no = 'OG0016'
+    #invoice_no = 'ON0002'
+    #invoice_no = 'ON0018'
 
     #oerp = oerplib.OERP('localhost', protocol='xmlrpc', port=8069)
     #user = oerp.login('admin', 'X', 'X')
@@ -393,6 +424,9 @@ if __name__ == '__main__':
     #url = 'http://localhost:8080/validate-ws/'
     url = 'http://vefa.difi.no/validate-ws/'
     data = create_ehf(invoice)
+    f = open('test-invoice.xml', 'w')
+    f.write(data)
+    f.close()
     print "DATA", data
     req = urllib2.Request(url)
     req.add_header('Content-Type', 'application/xml; charset=utf-8')
