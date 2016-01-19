@@ -51,7 +51,7 @@ def create_supplier_party(company):
                     E_cac.Country(E_cbc.IdentificationCode(company.country_id.code, listID="ISO3166-1:Alpha2")),
                 ),
             ),
-            E_cac.Contact(  #E_cbc.ID('Our ref'),  #E_cbc.Name(our_contact),  #E_cbc.Telephone(elmatica_phone),
+            E_cac.Contact(
                             E_cbc.ElectronicMail(company.email),
             ),
         )
