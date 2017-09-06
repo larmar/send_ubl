@@ -15,14 +15,6 @@
                         </group>
                     </page>
                 </xpath>
-
-                <xpath expr="//group[@name='account_grp']" position="after">
-                    <group name="project_grp" string="eInvoicing (EHF)">
-                        <field name="einvoice_ftp_endpoint" />
-                        <field name="einvoice_ftp_user" />
-                        <field name="einvoice_ftp_password" />
-                    </group>
-                </xpath>
             </field>
         </record>
        </data>
