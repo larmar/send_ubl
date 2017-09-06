@@ -6,6 +6,16 @@
             <field name="model">res.company</field>
             <field name="inherit_id" ref="base.view_company_form"/>
             <field name="arch" type="xml">
+                <xpath expr="/form[1]/sheet[1]/notebook[1]/page[1]" position="after">
+                    <page string="eInvoicing (EHF)">
+                        <group>
+                            <field name="einvoice_ftp_endpoint" />
+                            <field name="einvoice_ftp_user" />
+                            <field name="einvoice_ftp_password" />
+                        </group>
+                    </page>
+                </xpath>
+
                 <xpath expr="//group[@name='account_grp']" position="after">
                     <group name="project_grp" string="eInvoicing (EHF)">
                         <field name="einvoice_ftp_endpoint" />
